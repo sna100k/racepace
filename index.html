@@ -1,0 +1,1026 @@
+<1-- 'vibe coded' with https://gemini.google.com/ -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Race Pace Calculator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.0/dist/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script> <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f3f4f6; /* Light gray background */
+        }
+        .control-section, .chart-container, .table-section {
+            background-color: white;
+            padding: 1.5rem;
+            border-radius: 0.5rem;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            margin-bottom: 1rem;
+        }
+        .chart-container {
+            min-height: 450px;
+            height: 60vh;
+        }
+        .input-group { margin-bottom: 1rem; }
+        .input-group label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+            color: #374151; /* Gray-700 */
+        }
+        .input-group input[type="number"], .input-group input[type="text"], .input-group select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #d1d5db; /* Gray-300 */
+            border-radius: 0.375rem;
+            box-sizing: border-box;
+            transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        }
+        .input-group input[type="number"]:focus, .input-group input[type="text"]:focus, .input-group select:focus {
+            outline: none;
+            border-color: #6366f1; /* Indigo-500 */
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3);
+        }
+        /* Custom number input with buttons */
+        .number-input-wrapper {
+            display: flex;
+            align-items: center;
+        }
+        .number-input-wrapper input[type="number"] {
+            flex-grow: 1;
+            border-radius: 0.375rem 0 0 0.375rem;
+            /*appearance: textfield; Firefox */
+            -moz-appearance: textfield;
+        }
+        .number-input-wrapper input[type="number"]::-webkit-outer-spin-button,
+        .number-input-wrapper input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+        .input-button {
+            padding: 0.75rem 0.5rem; /* Adjusted padding */
+            border: 1px solid #d1d5db;
+            background-color: #f9fafb; /* Gray-50 */
+            cursor: pointer;
+            height: calc(1.5rem + 2px + 0.75rem * 2 - 2px) ; /* Match input height: padding*2 + border*2 + text_approx */
+            line-height: 1.5rem; /* Match text line height */
+        }
+        .input-button:first-of-type {
+            border-left-width: 0;
+        }
+        .input-button:last-of-type {
+            border-radius: 0 0.375rem 0.375rem 0;
+        }
+        .input-button:hover {
+            background-color: #f3f4f6; /* Gray-100 */
+        }
+
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border-radius: 0.375rem;
+            font-weight: 600;
+            text-align: center;
+            cursor: pointer;
+            transition: background-color 0.15s ease-in-out;
+        }
+        .btn-primary {
+            background-color: #6366f1; /* Indigo-500 */
+            color: white;
+        }
+        .btn-primary:hover {
+            background-color: #4f46e5; /* Indigo-600 */
+        }
+        .collapsible-header {
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #e5e7eb; /* Gray-200 */
+        }
+        .collapsible-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+        .collapsible-content.open {
+            max-height: 1500px; /* Increased max-height */
+            padding-top: 1rem;
+        }
+        #notificationMessage {
+            transition: opacity 0.5s ease-in-out;
+        }
+        /* Slider styling */
+        input[type="range"] {
+            width: calc(100% - 4.5rem); /* Adjust width to make space for number input */
+            margin-right: 0.5rem;
+            vertical-align: middle;
+        }
+        .split-input-container { display: flex; align-items: center; }
+        .split-input-container input[type="number"] { width: 4rem; text-align: center; }
+
+        /* Table styling */
+        .pace-table { width: 100%; border-collapse: collapse; margin-top: 1rem; }
+        .pace-table th, .pace-table td {
+            border: 1px solid #e5e7eb; /* Gray-200 */
+            padding: 0.75rem;
+            text-align: left;
+        }
+        .pace-table th { background-color: #f9fafb; /* Gray-50 */ font-weight: 600; }
+        .pace-table td { color: #374151; /* Gray-700 */ }
+
+    </style>
+</head>
+<body class="p-4 md:p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-3xl font-bold text-center mb-6 text-gray-800">Race Pace Calculator</h1>
+
+        <div class="control-section">
+            <div id="controlsHeader" class="collapsible-header">
+                <h2 class="text-xl font-semibold text-gray-700">Pacing Controls</h2>
+                <svg id="controlsChevron" class="w-6 h-6 text-gray-600 transform transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+            </div>
+            <div id="controlsContent" class="collapsible-content open">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-2">
+                    <div class="input-group">
+                        <label for="raceLength">Race Length:</label>
+                        <select id="raceLength">
+                            <option value="5">5km</option>
+                            <option value="10">10km</option>
+                            <option value="16.0934">10 miles</option>
+                            <option value="21.0975">Half Marathon (21.1km)</option>
+                            <option value="42.195">Full Marathon (42.2km)</option>
+                            <option value="50">50km</option>
+                            <option value="custom">Custom</option>
+                        </select>
+                        <input type="number" id="customRaceLength" class="mt-2 hidden" placeholder="Enter length" step="any">
+                    </div>
+
+                    <div class="input-group">
+                        <label for="distanceUnit">Units for Length & Pace:</label>
+                        <select id="distanceUnit">
+                            <option value="km">Kilometers (km)</option>
+                            <option value="mi">Miles (mi)</option>
+                        </select>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="targetTimeH">Target Time (HH:MM:SS):</label>
+                        <div class="flex space-x-2">
+                            <div class="number-input-wrapper w-1/3">
+                                <input type="number" id="targetTimeH" placeholder="HH" min="0" max="99">
+                                <button type="button" class="input-button" data-input="targetTimeH" data-step="1">+</button>
+                                <button type="button" class="input-button" data-input="targetTimeH" data-step="-1">-</button>
+                            </div>
+                            <div class="number-input-wrapper w-1/3">
+                                <input type="number" id="targetTimeM" placeholder="MM" min="0" max="59">
+                                <button type="button" class="input-button" data-input="targetTimeM" data-step="1">+</button>
+                                <button type="button" class="input-button" data-input="targetTimeM" data-step="-1">-</button>
+                            </div>
+                            <div class="number-input-wrapper w-1/3">
+                                <input type="number" id="targetTimeS" placeholder="SS" min="0" max="59">
+                                <button type="button" class="input-button" data-input="targetTimeS" data-step="1">+</button>
+                                <button type="button" class="input-button" data-input="targetTimeS" data-step="-1">-</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="targetPaceM">Target Pace (MM:SS per <span id="paceUnitLabel">km</span>):</label>
+                        <div class="flex space-x-2">
+                            <div class="number-input-wrapper w-1/2">
+                                <input type="number" id="targetPaceM" placeholder="MM" min="0" max="99"> <button type="button" class="input-button" data-input="targetPaceM" data-step="1">+</button>
+                                <button type="button" class="input-button" data-input="targetPaceM" data-step="-1">-</button>
+                            </div>
+                            <div class="number-input-wrapper w-1/2">
+                                <input type="number" id="targetPaceS" placeholder="SS" min="0" max="59">
+                                <button type="button" class="input-button" data-input="targetPaceS" data-step="1">+</button>
+                                <button type="button" class="input-button" data-input="targetPaceS" data-step="-1">-</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="splitPercent">Split (% change for 2nd half):</label>
+                        <div class="split-input-container">
+                            <input type="range" id="splitPercentSlider" min="-50" max="50" value="0" step="0.5">
+                            <input type="number" id="splitPercentNumber" min="-50" max="50" value="0" step="0.5">
+                        </div>
+                         <p class="text-xs text-gray-500 mt-1">Positive for negative split (faster 2nd half), negative for positive split (slower 2nd half).</p>
+                    </div>
+
+                    <div class="input-group">
+                        <label for="splitCurveShape">Split Shape:</label>
+                        <select id="splitCurveShape">
+                            <option value="linear">Linear</option>
+                            <option value="sinusoidal">Sinusoidal</option>
+                            <option value="steps">Steps</option>
+                            <option value="power">Power Curve</option>
+                        </select>
+                        <input type="number" id="stepsNumber" class="mt-2 hidden" placeholder="Number of steps (e.g., 2)" value="2" min="2" max="20">
+                        <input type="number" id="powerExponent" class="mt-2 hidden" placeholder="Exponent (e.g., 2.0)" value="2.0" step="0.1" min="0.1" max="10">
+                    </div>
+                </div>
+
+                <div class="mt-6 pt-6 border-t border-gray-200">
+                     <h3 class="text-lg font-medium text-gray-700 mb-3">Additional Chart Lines (+/- % of target pace)</h3>
+                     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div class="input-group">
+                            <label for="showLinesPlus">Show Lines (+%): <span class="text-sm text-gray-500">(comma-separated)</span></label>
+                            <input type="text" id="showLinesPlus" placeholder="e.g., 2, 5">
+                        </div>
+                        <div class="input-group">
+                            <label for="showLinesMinus">Show Lines (-%): <span class="text-sm text-gray-500">(comma-separated)</span></label>
+                            <input type="text" id="showLinesMinus" placeholder="e.g., 2, 5">
+                        </div>
+                     </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="chart-container">
+            <canvas id="paceChart"></canvas>
+        </div>
+
+        <div class="table-section">
+            <div id="paceTableHeader" class="collapsible-header">
+                <h2 class="text-xl font-semibold text-gray-700">Pace Breakdown by Segment</h2>
+                <svg id="paceTableChevron" class="w-6 h-6 text-gray-600 transform transition-transform rotate-[-180deg]" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+            </div>
+            <div id="paceTableContent" class="collapsible-content">
+                <table id="paceBreakdownTable" class="pace-table">
+                    <thead>
+                        <tr>
+                            <th id="segmentHeader">Segment</th>
+                            <th id="paceHeader">Target Pace</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        </tbody>
+                </table>
+            </div>
+        </div>
+
+
+        <div class="mt-6 text-center">
+            <button id="shareButton" class="btn btn-primary">Share Configuration</button>
+            <p id="notificationMessage" class="mt-2 text-sm text-green-600 h-5 opacity-0"></p>
+            <p id="shareLinkContainer" class="mt-2 text-sm text-gray-600 hidden">
+                Shareable Link: <a href="#" id="shareableLink" class="text-indigo-600 hover:text-indigo-800 break-all"></a>
+            </p>
+        </div>
+    </div>
+
+    <script>
+        // Constants
+        const KM_PER_MILE = 1.60934;
+        const MILE_PER_KM = 1 / KM_PER_MILE;
+        const CHART_POINTS = 100;
+
+        // DOM Elements
+        const el = {
+            raceLength: document.getElementById('raceLength'),
+            customRaceLength: document.getElementById('customRaceLength'),
+            distanceUnit: document.getElementById('distanceUnit'),
+            targetTimeH: document.getElementById('targetTimeH'),
+            targetTimeM: document.getElementById('targetTimeM'),
+            targetTimeS: document.getElementById('targetTimeS'),
+            targetPaceM: document.getElementById('targetPaceM'),
+            targetPaceS: document.getElementById('targetPaceS'),
+            paceUnitLabel: document.getElementById('paceUnitLabel'),
+            splitPercentSlider: document.getElementById('splitPercentSlider'),
+            splitPercentNumber: document.getElementById('splitPercentNumber'),
+            splitCurveShape: document.getElementById('splitCurveShape'),
+            stepsNumber: document.getElementById('stepsNumber'),
+            powerExponent: document.getElementById('powerExponent'),
+            showLinesPlus: document.getElementById('showLinesPlus'),
+            showLinesMinus: document.getElementById('showLinesMinus'),
+            shareButton: document.getElementById('shareButton'),
+            shareLinkContainer: document.getElementById('shareLinkContainer'),
+            shareableLink: document.getElementById('shareableLink'),
+            controlsHeader: document.getElementById('controlsHeader'),
+            controlsContent: document.getElementById('controlsContent'),
+            controlsChevron: document.getElementById('controlsChevron'),
+            notificationMessage: document.getElementById('notificationMessage'),
+            paceTableHeader: document.getElementById('paceTableHeader'),
+            paceTableContent: document.getElementById('paceTableContent'),
+            paceTableChevron: document.getElementById('paceTableChevron'),
+            paceBreakdownTableBody: document.querySelector('#paceBreakdownTable tbody'),
+            segmentHeader: document.getElementById('segmentHeader'),
+            paceHeaderPace: document.getElementById('paceHeader'),
+        };
+
+        let paceChart;
+        let notificationTimeout;
+
+        let currentSettings = {
+            raceLengthKm: 5,
+            displayUnit: 'km',
+            targetTimeSec: 0,
+            targetPaceSecPerKm: 0,
+            splitPercent: 0, // Positive for negative split, negative for positive split
+            splitCurve: 'linear',
+            stepsNumberVal: 2,
+            powerExponentVal: 2.0,
+            showLinesPlus: [],
+            showLinesMinus: []
+        };
+
+        // --- Utility Functions ---
+        const formatTime = (totalSeconds, includeHoursThreshold = 3600) => {
+            if (isNaN(totalSeconds) || totalSeconds < 0) totalSeconds = 0;
+            const totalSecondsRounded = Math.round(totalSeconds);
+            const h = Math.floor(totalSecondsRounded / 3600);
+            const m = Math.floor((totalSecondsRounded % 3600) / 60);
+            const s = totalSecondsRounded % 60;
+            if (totalSecondsRounded >= includeHoursThreshold || h > 0) {
+              return { h, m, s, string: `${String(h).padStart(1,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`};
+            }
+            return { h, m, s, string: `${String(m).padStart(1,'0')}:${String(s).padStart(2,'0')}`};
+        };
+
+        const formatPace = (secondsPerUnit) => {
+            if (isNaN(secondsPerUnit) || secondsPerUnit <= 0) return { m: 0, s: 0, string: '0:00' };
+            const secondsPerUnitRounded = Math.round(secondsPerUnit);
+            const m = Math.floor(secondsPerUnitRounded / 60);
+            const s = secondsPerUnitRounded % 60;
+            return { m, s, string: `${m}:${String(s).padStart(2, '0')}` };
+        };
+
+        const parseTimeInput = () => {
+            return (parseInt(el.targetTimeH.value) || 0) * 3600 +
+                   (parseInt(el.targetTimeM.value) || 0) * 60 +
+                   (parseInt(el.targetTimeS.value) || 0);
+        };
+        const parsePaceInput = () => {
+            return (parseInt(el.targetPaceM.value) || 0) * 60 +
+                   (parseInt(el.targetPaceS.value) || 0);
+        };
+
+        const convertKmToUnit = (km, unit) => unit === 'mi' ? km * MILE_PER_KM : km;
+        const convertUnitToKm = (dist, unit) => unit === 'mi' ? dist * KM_PER_MILE : dist;
+        const convertPaceKmToUnit = (pacePerKm, unit) => unit === 'mi' ? pacePerKm * KM_PER_MILE : pacePerKm;
+        const convertPaceUnitToKm = (pacePerUnit, unit) => unit === 'mi' ? pacePerUnit * KM_PER_MILE : pacePerUnit;
+
+        function showNotification(message, duration = 3000, isError = false) {
+            el.notificationMessage.textContent = message;
+            el.notificationMessage.className = `mt-2 text-sm h-5 ${isError ? 'text-red-600' : 'text-green-600'}`;
+            el.notificationMessage.style.opacity = '1';
+            clearTimeout(notificationTimeout);
+            notificationTimeout = setTimeout(() => { el.notificationMessage.style.opacity = '0'; }, duration);
+        }
+
+        // --- Input Handling with Wrapping ---
+        function handleTimePaceInputChange(inputElement, unitType) { // unitType: 'H', 'M', 'S' for time; 'PM', 'PS' for pace
+            let h = parseInt(el.targetTimeH.value) || 0;
+            let m = parseInt(el.targetTimeM.value) || 0;
+            let s = parseInt(el.targetTimeS.value) || 0;
+            let pM = parseInt(el.targetPaceM.value) || 0;
+            let pS = parseInt(el.targetPaceS.value) || 0;
+
+            if (unitType === 'S') {
+                if (s > 59) { m += Math.floor(s / 60); s %= 60; }
+                else if (s < 0) { m -= Math.ceil(Math.abs(s) / 60); s = 60 + (s % 60); if (s===60) s=0;}
+                 if (m > 59) { h += Math.floor(m / 60); m %= 60; }
+                 else if (m < 0 && h > 0) { h -= Math.ceil(Math.abs(m)/60); m = 60 + (m % 60); if(m===60)m=0;}
+                 else if (m < 0 && h <= 0) { m = 0; } // Prevent negative minutes if hours are zero or negative
+            } else if (unitType === 'M') {
+                if (m > 59) { h += Math.floor(m / 60); m %= 60; }
+                else if (m < 0 && h > 0) { h -= Math.ceil(Math.abs(m)/60); m = 60 + (m % 60); if(m===60)m=0;}
+                else if (m < 0 && h <= 0) { m = 0; }
+            } else if (unitType === 'PS') {
+                if (pS > 59) { pM += Math.floor(pS / 60); pS %= 60; }
+                else if (pS < 0 ) { pM -= Math.ceil(Math.abs(pS)/60); pS = 60 + (pS % 60); if(pS===60)pS=0;}
+                if (pM < 0) pM = 0; // Pace minutes don't go negative
+            } else if (unitType === 'PM') {
+                 if (pM < 0) pM = 0;
+            }
+
+
+            if (h < 0) h = 0;
+
+            el.targetTimeH.value = h > 0 ? h : '';
+            el.targetTimeM.value = (h > 0 || m > 0) ? String(m).padStart(h > 0 ? 2 : 1, '0') : '';
+            el.targetTimeS.value = (h > 0 || m > 0 || s > 0) ? String(s).padStart(2, '0') : '';
+
+            el.targetPaceM.value = pM > 0 ? pM : '';
+            el.targetPaceS.value = (pM > 0 || pS > 0) ? String(pS).padStart(2, '0') : '';
+
+
+            if (unitType === 'H' || unitType === 'M' || unitType === 'S') {
+                currentSettings.targetTimeSec = parseTimeInput();
+                el.targetPaceM.value = ''; el.targetPaceS.value = ''; currentSettings.targetPaceSecPerKm = 0;
+                updatePaceFromTime();
+            } else { // PM or PS
+                currentSettings.targetPaceSecPerKm = convertPaceUnitToKm(parsePaceInput(), currentSettings.displayUnit);
+                el.targetTimeH.value = ''; el.targetTimeM.value = ''; el.targetTimeS.value = ''; currentSettings.targetTimeSec = 0;
+                updateTimeFromPace();
+            }
+        }
+
+
+        // --- Core Logic Functions ---
+        function updatePaceFromTime() {
+            if (currentSettings.raceLengthKm > 0 && currentSettings.targetTimeSec > 0) {
+                currentSettings.targetPaceSecPerKm = currentSettings.targetTimeSec / currentSettings.raceLengthKm;
+                const paceInDisplayUnit = convertPaceKmToUnit(currentSettings.targetPaceSecPerKm, currentSettings.displayUnit);
+                const { m, s } = formatPace(paceInDisplayUnit);
+                el.targetPaceM.value = m > 0 ? String(m) : '';
+                el.targetPaceS.value = (m > 0 || s > 0) ? String(s).padStart(2, '0') : '';
+            } else if (currentSettings.targetTimeSec <= 0) { // If time is cleared, clear pace
+                el.targetPaceM.value = '';
+                el.targetPaceS.value = '';
+                currentSettings.targetPaceSecPerKm = 0;
+            }
+            updateUIAndOutput();
+        }
+
+        function updateTimeFromPace() {
+            if (currentSettings.raceLengthKm > 0 && currentSettings.targetPaceSecPerKm > 0) {
+                currentSettings.targetTimeSec = currentSettings.targetPaceSecPerKm * currentSettings.raceLengthKm;
+                const { h, m, s } = formatTime(currentSettings.targetTimeSec);
+                el.targetTimeH.value = h > 0 ? String(h) : '';
+                el.targetTimeM.value = (h > 0 || m > 0) ? String(m).padStart(h > 0 ? 2 : 1, '0') : '';
+                el.targetTimeS.value = (h > 0 || m > 0 || s > 0) ? String(s).padStart(2, '0') : '';
+            } else if (currentSettings.targetPaceSecPerKm <= 0) { // If pace is cleared, clear time
+                el.targetTimeH.value = '';
+                el.targetTimeM.value = '';
+                el.targetTimeS.value = '';
+                currentSettings.targetTimeSec = 0;
+            }
+            updateUIAndOutput();
+        }
+
+        function calculatePaceProfile(basePaceSecPerKm, totalDistKm, splitPct, curve, steps, exponent) {
+            const profile = [];
+            const numPoints = CHART_POINTS;
+
+            if (totalDistKm <= 0 || basePaceSecPerKm <= 0) {
+                for (let i = 0; i <= numPoints; i++) {
+                     profile.push({ x: (i / numPoints) * (totalDistKm || 1), y: (basePaceSecPerKm || 300) });
+                }
+                return profile;
+            }
+
+            const splitFactor = splitPct / 100; // positive for neg split (faster 2nd half)
+            let paceStartEffort = basePaceSecPerKm;
+            let paceEndEffort = basePaceSecPerKm;
+
+            if (splitPct !== 0) {
+                 // if splitFactor > 0 (neg split), paceStartEffort is SLOWER, paceEndEffort is FASTER
+                 paceStartEffort = (2 * basePaceSecPerKm) / (2 - splitFactor);
+                 paceEndEffort = paceStartEffort * (1 - splitFactor);
+            }
+
+            for (let i = 0; i <= numPoints; i++) {
+                const fractionOfRace = i / numPoints;
+                const currentDistKm = fractionOfRace * totalDistKm;
+                let currentPaceSecPerKm;
+
+                if (splitPct === 0) {
+                    currentPaceSecPerKm = basePaceSecPerKm;
+                } else {
+                    switch (curve) {
+                        case 'linear':
+                            currentPaceSecPerKm = paceStartEffort + (paceEndEffort - paceStartEffort) * fractionOfRace;
+                            break;
+                        case 'sinusoidal':
+                            const midPace = (paceStartEffort + paceEndEffort) / 2;
+                            const amplitude = (paceStartEffort - paceEndEffort) / 2; // paceStart is higher (slower) if neg split
+                            currentPaceSecPerKm = midPace + amplitude * Math.cos(fractionOfRace * Math.PI);
+                            break;
+                        case 'steps':
+                            const numSteps = Math.max(2, steps);
+                            const currentStep = Math.floor(fractionOfRace * numSteps); // 0 to numSteps-1
+                            const stepProgress = Math.min(currentStep / (numSteps -1 ), 1); // Fraction of way through total steps
+                            currentPaceSecPerKm = paceStartEffort + (paceEndEffort - paceStartEffort) * stepProgress;
+                            if (fractionOfRace === 1) currentPaceSecPerKm = paceEndEffort; // Ensure last point is exactly endEffort
+                            break;
+                        case 'power':
+                            const exp = Math.max(0.1, exponent);
+                            currentPaceSecPerKm = paceStartEffort + (paceEndEffort - paceStartEffort) * Math.pow(fractionOfRace, exp);
+                            break;
+                        default:
+                            currentPaceSecPerKm = basePaceSecPerKm;
+                    }
+                }
+                profile.push({ x: currentDistKm, y: currentPaceSecPerKm });
+            }
+            return profile;
+        }
+
+        function calculateTotalTimeForProfile(profileKm, totalDistKm) {
+            // (Implementation from previous version, assumed correct)
+            let totalTimeSec = 0;
+            if (profileKm.length > 1) {
+                for (let i = 0; i < profileKm.length - 1; i++) {
+                    const segmentDist = profileKm[i+1].x - profileKm[i].x;
+                    const avgPaceSegment = (profileKm[i].y + profileKm[i+1].y) / 2;
+                    totalTimeSec += segmentDist * avgPaceSegment;
+                }
+            } else if (profileKm.length === 1 && totalDistKm > 0) {
+                 totalTimeSec = profileKm[0].y * totalDistKm;
+            }
+            return totalTimeSec;
+        }
+
+        // --- Chart Update ---
+        function updateChart() {
+            // (Largely similar to previous version, with adjustments for new curve params)
+            if (!paceChart || currentSettings.raceLengthKm <= 0 || currentSettings.targetPaceSecPerKm <=0) {
+                if(paceChart) {
+                    paceChart.data.labels = [];
+                    paceChart.data.datasets = [];
+                    paceChart.options.plugins.title.text = 'Pace Plan - Enter Race Length & Target Time/Pace';
+                    paceChart.update('none');
+                }
+                return;
+            }
+
+            const paceUnit = currentSettings.displayUnit;
+            const mainPaceProfileKm = calculatePaceProfile(
+                currentSettings.targetPaceSecPerKm, currentSettings.raceLengthKm,
+                currentSettings.splitPercent, currentSettings.splitCurve,
+                currentSettings.stepsNumberVal, currentSettings.powerExponentVal
+            );
+            const mainPaceProfileDisplay = mainPaceProfileKm.map(p => ({
+                x: convertKmToUnit(p.x, paceUnit),
+                y: convertPaceKmToUnit(p.y, paceUnit)
+            }));
+
+            const datasets = [{
+                label: `Target Pace (${paceUnit})`, data: mainPaceProfileDisplay,
+                borderColor: '#6366f1', backgroundColor: 'rgba(99, 102, 241, 0.1)',
+                tension: 0.1, fill: false, borderWidth: 2.5, pointRadius: 0, pointHitRadius: 10,
+                isMainLine: true, order: 1 // For tooltip sorting
+            }];
+
+            currentSettings.showLinesPlus.forEach(percent => {
+                if (percent > 0) {
+                    const adjBasePace = currentSettings.targetPaceSecPerKm * (1 - percent / 100); // +% pace means faster, so LESS seconds
+                    const pKm = calculatePaceProfile(adjBasePace, currentSettings.raceLengthKm, currentSettings.splitPercent, currentSettings.splitCurve, currentSettings.stepsNumberVal, currentSettings.powerExponentVal);
+                    datasets.push({
+                        label: `-${percent}% Time (${formatPace(adjBasePace).string}/${paceUnit})`, // Show as faster pace
+                        data: pKm.map(p => ({ x: convertKmToUnit(p.x, paceUnit), y: convertPaceKmToUnit(p.y, paceUnit) })),
+                        borderColor: `rgba(16, 185, 129, 0.6)`, tension: 0.1, fill: false, borderDash: [5, 5], borderWidth: 1.5, pointRadius: 0,
+                        isPlusLine: true, percent: percent, basePaceKm: adjBasePace, order: 0 // Faster lines first
+                    });
+                }
+            });
+            currentSettings.showLinesMinus.forEach(percent => {
+                 if (percent > 0) {
+                    const adjBasePace = currentSettings.targetPaceSecPerKm * (1 + percent / 100); // -% pace means slower, so MORE seconds
+                    const pKm = calculatePaceProfile(adjBasePace, currentSettings.raceLengthKm, currentSettings.splitPercent, currentSettings.splitCurve, currentSettings.stepsNumberVal, currentSettings.powerExponentVal);
+                    datasets.push({
+                        label: `+${percent}% Time (${formatPace(adjBasePace).string}/${paceUnit})`, // Show as slower pace
+                        data: pKm.map(p => ({ x: convertKmToUnit(p.x, paceUnit), y: convertPaceKmToUnit(p.y, paceUnit) })),
+                        borderColor: `rgba(239, 68, 68, 0.6)`, tension: 0.1, fill: false, borderDash: [5, 5], borderWidth: 1.5, pointRadius: 0,
+                        isMinusLine: true, percent: percent, basePaceKm: adjBasePace, order: 2 // Slower lines last
+                    });
+                }
+            });
+
+            paceChart.data.labels = mainPaceProfileDisplay.map(p => p.x.toFixed(currentSettings.displayUnit === 'mi' ? 2 : 1));
+            paceChart.data.datasets = datasets;
+
+            paceChart.options.scales.x.title.text = `Distance (${paceUnit})`;
+            paceChart.options.scales.y.title.text = `Pace (min:sec/${paceUnit})`;
+            paceChart.options.scales.y.ticks.callback = function(value) { return formatPace(value).string; };
+
+            const totalTimeMainLine = calculateTotalTimeForProfile(mainPaceProfileKm, currentSettings.raceLengthKm);
+            paceChart.options.plugins.title.text = `Pace Plan. Estimated Total Time: ${formatTime(totalTimeMainLine).string}`;
+            paceChart.update('none');
+        }
+
+        const endOfLineLabelsPlugin = { /* ... (same as before, ensure basePaceKm is available in dataset for calc) ... */
+            id: 'endOfLineLabels',
+            afterDatasetsDraw: (chart, args, pluginOptions) => {
+                const { ctx, data, scales: { x: xScale, y: yScale } } = chart;
+                 if (currentSettings.raceLengthKm <= 0 || (currentSettings.targetPaceSecPerKm <=0 && !data.datasets.some(ds => ds.basePaceKm > 0))) return;
+
+
+                ctx.save();
+                ctx.font = '0.75rem Inter';
+                ctx.textBaseline = 'middle';
+
+                data.datasets.forEach((dataset, i) => {
+                    if (!dataset.data || dataset.data.length === 0) return;
+                    const meta = chart.getDatasetMeta(i);
+                    if (meta.hidden) return;
+
+                    const lastPoint = meta.data[meta.data.length - 1];
+                    if (!lastPoint) return;
+
+                    let basePaceForThisLineKm = dataset.basePaceKm; // Use stored base pace for this line
+                    if (dataset.isMainLine) basePaceForThisLineKm = currentSettings.targetPaceSecPerKm;
+
+                    if (!basePaceForThisLineKm || basePaceForThisLineKm <= 0) return;
+
+                    const profileKm = calculatePaceProfile(
+                        basePaceForThisLineKm, currentSettings.raceLengthKm,
+                        currentSettings.splitPercent, currentSettings.splitCurve,
+                        currentSettings.stepsNumberVal, currentSettings.powerExponentVal
+                    );
+                    const totalTimeSec = calculateTotalTimeForProfile(profileKm, currentSettings.raceLengthKm);
+                    const timeString = formatTime(totalTimeSec).string;
+
+                    ctx.fillStyle = dataset.borderColor;
+                    let xPos = lastPoint.x + 8;
+                    ctx.textAlign = 'left';
+
+                    if (xPos + ctx.measureText(timeString).width > chart.width - 5) {
+                        xPos = lastPoint.x - 8;
+                        ctx.textAlign = 'right';
+                    }
+                    let yPos = lastPoint.y;
+                    if (yPos < 15) yPos = 15;
+                    if (yPos > chart.height - 15) yPos = chart.height - 15;
+
+                    ctx.fillText(timeString, xPos, yPos);
+                });
+                ctx.restore();
+            }
+        };
+
+        function initializeChart() {
+            const ctx = document.getElementById('paceChart').getContext('2d');
+            Chart.register(endOfLineLabelsPlugin);
+            paceChart = new Chart(ctx, {
+                type: 'line', data: { labels: [], datasets: [] },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false, },
+                    plugins: {
+                        title: { display: true, text: 'Pace Plan', font: { size: 16 } },
+                        tooltip: {
+                            itemSort: (a, b) => a.dataset.order - b.dataset.order, // Sort by predefined order
+                            callbacks: {
+                                title: (tooltipItems) => `Distance: ${parseFloat(tooltipItems[0].label).toFixed(currentSettings.displayUnit === 'mi' ? 2 : 1)} ${currentSettings.displayUnit}`,
+                                label: (context) => {
+                                    const paceSec = context.raw.y;
+                                    let label = context.dataset.label || '';
+                                    label = label.replace(/\s\(.*\)/, ''); // Remove existing pace from label if present
+                                    label += `: ${formatPace(paceSec).string} /${currentSettings.displayUnit}`;
+
+                                    let basePaceForTooltipLineKm = context.dataset.basePaceKm;
+                                    if(context.dataset.isMainLine) basePaceForTooltipLineKm = currentSettings.targetPaceSecPerKm;
+
+                                    if (basePaceForTooltipLineKm > 0 && currentSettings.raceLengthKm > 0) {
+                                        const profileKm = calculatePaceProfile(basePaceForTooltipLineKm, currentSettings.raceLengthKm, currentSettings.splitPercent, currentSettings.splitCurve, currentSettings.stepsNumberVal, currentSettings.powerExponentVal);
+                                        const currentDistKmChart = convertUnitToKm(parseFloat(context.label), currentSettings.displayUnit);
+                                        let cumulativeTimeSec = 0;
+                                        // ... (cumulative time calculation logic from previous version, ensure it uses profileKm)
+                                        for (let i = 0; i < profileKm.length - 1; i++) {
+                                            const p1 = profileKm[i]; const p2 = profileKm[i+1];
+                                            if (p2.x <= currentDistKmChart) {
+                                                 cumulativeTimeSec += (p2.x - p1.x) * (p1.y + p2.y) / 2;
+                                            } else {
+                                                if (p1.x < currentDistKmChart) {
+                                                    const frac = (currentDistKmChart - p1.x) / (p2.x - p1.x || 1);
+                                                    const paceAtDist = p1.y + (p2.y - p1.y) * frac;
+                                                    cumulativeTimeSec += (currentDistKmChart - p1.x) * (p1.y + paceAtDist) / 2;
+                                                }
+                                                break;
+                                            }
+                                        }
+                                        if (currentDistKmChart <=0) cumulativeTimeSec = 0;
+                                        label += ` (Cum. Time: ${formatTime(cumulativeTimeSec).string})`;
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    },
+                    scales: { /* ... (same as before) ... */
+                        x: { type: 'linear', title: { display: true, text: `Distance (${currentSettings.displayUnit})` }, ticks: { callback: function(value) { return parseFloat(value).toFixed(currentSettings.displayUnit === 'mi' ? 2 : 1); } } },
+                        y: { title: { display: true, text: `Pace (min:sec/${currentSettings.displayUnit})` }, ticks: { callback: function(value) { return formatPace(value).string; }}, reverse: true }
+                    }
+                }
+            });
+        }
+
+        // --- URL Parameter Handling ---
+        function updateURLParameters() {
+            const params = new URLSearchParams();
+            if (currentSettings.raceLengthKm > 0) params.set('rl', currentSettings.raceLengthKm.toFixed(3));
+            params.set('ru', currentSettings.displayUnit);
+            if (currentSettings.targetTimeSec > 0) params.set('tt', currentSettings.targetTimeSec);
+            if (currentSettings.targetPaceSecPerKm > 0) params.set('tp', currentSettings.targetPaceSecPerKm.toFixed(2));
+            if (currentSettings.splitPercent !== 0) params.set('sp', currentSettings.splitPercent);
+            params.set('sc', currentSettings.splitCurve);
+            if (currentSettings.splitCurve === 'steps') params.set('scs', currentSettings.stepsNumberVal);
+            if (currentSettings.splitCurve === 'power') params.set('scp', currentSettings.powerExponentVal);
+            if (currentSettings.showLinesPlus.length > 0) params.set('slp', currentSettings.showLinesPlus.join(','));
+            if (currentSettings.showLinesMinus.length > 0) params.set('slm', currentSettings.showLinesMinus.join(','));
+
+            const newUrl = `${window.location.pathname}?${params.toString()}`;
+            window.history.replaceState({}, '', newUrl); // Live update URL
+            el.shareableLink.href = newUrl;
+            el.shareableLink.textContent = newUrl;
+            el.shareLinkContainer.classList.toggle('hidden', !params.toString());
+        }
+
+        function loadFromURLParameters() {
+            // (Similar to previous, but with new params: sp, scs, scp)
+            const params = new URLSearchParams(window.location.search);
+            let needsFullUpdate = false;
+
+            if (params.has('rl')) { /* ... */ currentSettings.raceLengthKm = parseFloat(params.get('rl')) || 5; needsFullUpdate = true; el.raceLength.value = currentSettings.raceLengthKm.toString(); /* simplified match */ }
+            // ... other param loading ...
+            if (params.has('ru')) { currentSettings.displayUnit = params.get('ru') === 'mi' ? 'mi' : 'km'; el.distanceUnit.value = currentSettings.displayUnit; needsFullUpdate = true;}
+
+            let timeInputChanged = false, paceInputChanged = false;
+            if (params.has('tp')) { currentSettings.targetPaceSecPerKm = parseFloat(params.get('tp')) || 0; paceInputChanged = true; needsFullUpdate = true; }
+            if (params.has('tt') && !paceInputChanged) { currentSettings.targetTimeSec = parseInt(params.get('tt')) || 0; timeInputChanged = true; needsFullUpdate = true; }
+
+            if (params.has('sp')) { currentSettings.splitPercent = parseFloat(params.get('sp')) || 0; el.splitPercentSlider.value = currentSettings.splitPercent; el.splitPercentNumber.value = currentSettings.splitPercent; needsFullUpdate = true; }
+            if (params.has('sc')) { currentSettings.splitCurve = params.get('sc'); el.splitCurveShape.value = currentSettings.splitCurve; needsFullUpdate = true; }
+            if (params.has('scs') && currentSettings.splitCurve === 'steps') { currentSettings.stepsNumberVal = parseInt(params.get('scs')) || 2; el.stepsNumber.value = currentSettings.stepsNumberVal; needsFullUpdate = true; }
+            if (params.has('scp') && currentSettings.splitCurve === 'power') { currentSettings.powerExponentVal = parseFloat(params.get('scp')) || 2.0; el.powerExponent.value = currentSettings.powerExponentVal; needsFullUpdate = true; }
+
+            if (params.has('slp')) { currentSettings.showLinesPlus = params.get('slp').split(',').map(p => parseFloat(p.trim())).filter(p=>!isNaN(p)&&p>0); el.showLinesPlus.value = currentSettings.showLinesPlus.join(', '); needsFullUpdate = true; }
+            if (params.has('slm')) { currentSettings.showLinesMinus = params.get('slm').split(',').map(p => parseFloat(p.trim())).filter(p=>!isNaN(p)&&p>0); el.showLinesMinus.value = currentSettings.showLinesMinus.join(', '); needsFullUpdate = true; }
+
+            // Update input fields from loaded settings
+            if (currentSettings.raceLengthKm) {
+                let matched = false;
+                for(let option of el.raceLength.options) {
+                    if (Math.abs(parseFloat(option.value) - currentSettings.raceLengthKm) < 0.001) {
+                        el.raceLength.value = option.value;
+                        el.customRaceLength.classList.add('hidden');
+                        matched = true; break;
+                    }
+                }
+                if (!matched) {
+                    el.raceLength.value = 'custom';
+                    el.customRaceLength.value = convertKmToUnit(currentSettings.raceLengthKm, currentSettings.displayUnit).toFixed(2);
+                    el.customRaceLength.classList.remove('hidden');
+                }
+            }
+
+
+            if (paceInputChanged) {
+                const paceInDisplay = convertPaceKmToUnit(currentSettings.targetPaceSecPerKm, currentSettings.displayUnit);
+                const {m,s} = formatPace(paceInDisplay);
+                el.targetPaceM.value = String(m); el.targetPaceS.value = String(s).padStart(2,'0');
+                updateTimeFromPace();
+            } else if (timeInputChanged) {
+                const {h,m,s} = formatTime(currentSettings.targetTimeSec);
+                el.targetTimeH.value = String(h); el.targetTimeM.value = String(m).padStart(2,'0'); el.targetTimeS.value = String(s).padStart(2,'0');
+                updatePaceFromTime();
+            } else if (needsFullUpdate) {
+                 if (currentSettings.targetPaceSecPerKm > 0) updateTimeFromPace();
+                 else if (currentSettings.targetTimeSec > 0) updatePaceFromTime();
+                 else updateUIAndOutput();
+            } else {
+                handleRaceLengthChange(); // Default load
+                if (currentSettings.raceLengthKm === 5 && currentSettings.targetTimeSec === 0 && currentSettings.targetPaceSecPerKm === 0) {
+                    el.targetTimeM.value = "25"; el.targetTimeS.value = "00";
+                    currentSettings.targetTimeSec = parseTimeInput();
+                    updatePaceFromTime();
+                } else { updateUIAndOutput(); }
+            }
+            toggleCurveSpecificInputs();
+        }
+
+        function updateUIAndOutput() { // Consolidated update function
+            updateChart();
+            updatePaceTable();
+            updateURLParameters();
+        }
+
+        // --- Pace Table Update ---
+        function updatePaceTable() {
+            el.paceBreakdownTableBody.innerHTML = ''; // Clear existing rows
+            el.segmentHeader.textContent = `Segment (${currentSettings.displayUnit})`;
+            el.paceHeaderPace.textContent = `Target Pace (min:sec/${currentSettings.displayUnit})`;
+
+
+            if (!currentSettings.targetPaceSecPerKm || currentSettings.targetPaceSecPerKm <= 0 || currentSettings.raceLengthKm <= 0) {
+                const row = el.paceBreakdownTableBody.insertRow();
+                const cell = row.insertCell();
+                cell.colSpan = 2;
+                cell.textContent = 'Enter race length and target time/pace to see breakdown.';
+                cell.classList.add('text-center', 'text-gray-500', 'py-4');
+                return;
+            }
+
+            const mainProfileKm = calculatePaceProfile(
+                currentSettings.targetPaceSecPerKm, currentSettings.raceLengthKm,
+                currentSettings.splitPercent, currentSettings.splitCurve,
+                currentSettings.stepsNumberVal, currentSettings.powerExponentVal
+            );
+
+            const totalDistDisplay = convertKmToUnit(currentSettings.raceLengthKm, currentSettings.displayUnit);
+            const numSegments = Math.ceil(totalDistDisplay);
+
+            for (let i = 1; i <= numSegments; i++) {
+                const segmentStartDisplay = i - 1;
+                const segmentEndDisplay = Math.min(i, totalDistDisplay); // Last segment might be shorter
+
+                // Convert segment boundaries to km for calculation
+                const segmentStartKm = convertUnitToKm(segmentStartDisplay, currentSettings.displayUnit);
+                const segmentEndKm = convertUnitToKm(segmentEndDisplay, currentSettings.displayUnit);
+
+                let timeForSegmentKm = 0;
+                let distCoveredInSegmentKm = 0;
+
+                for (let j = 0; j < mainProfileKm.length - 1; j++) {
+                    const p1 = mainProfileKm[j];     // {x: distKm, y: paceSecPerKm}
+                    const p2 = mainProfileKm[j+1];
+
+                    // Check for overlap of mainProfile segment [p1.x, p2.x] with current table segment [segmentStartKm, segmentEndKm]
+                    const overlapStartKm = Math.max(p1.x, segmentStartKm);
+                    const overlapEndKm = Math.min(p2.x, segmentEndKm);
+
+                    if (overlapStartKm < overlapEndKm) { // If there is an overlap
+                        const overlapDistKm = overlapEndKm - overlapStartKm;
+                        // Interpolate pace at overlapStartKm and overlapEndKm from the p1-p2 segment
+                        let paceAtOverlapStart, paceAtOverlapEnd;
+                        if (p2.x - p1.x > 0) { // Avoid division by zero
+                            paceAtOverlapStart = p1.y + (p2.y - p1.y) * ((overlapStartKm - p1.x) / (p2.x - p1.x));
+                            paceAtOverlapEnd = p1.y + (p2.y - p1.y) * ((overlapEndKm - p1.x) / (p2.x - p1.x));
+                        } else { // p1.x and p2.x are the same, segment has zero length
+                            paceAtOverlapStart = p1.y;
+                            paceAtOverlapEnd = p1.y;
+                        }
+                        const avgPaceInOverlapKm = (paceAtOverlapStart + paceAtOverlapEnd) / 2;
+                        timeForSegmentKm += overlapDistKm * avgPaceInOverlapKm;
+                        distCoveredInSegmentKm += overlapDistKm;
+                    }
+                }
+
+                const avgPaceForSegmentKm = distCoveredInSegmentKm > 0 ? timeForSegmentKm / distCoveredInSegmentKm : 0;
+                const avgPaceForSegmentDisplayUnit = convertPaceKmToUnit(avgPaceForSegmentKm, currentSettings.displayUnit);
+
+                const row = el.paceBreakdownTableBody.insertRow();
+                const cellSegment = row.insertCell();
+                const cellPace = row.insertCell();
+
+                cellSegment.textContent = `${segmentStartDisplay.toFixed(1)} - ${segmentEndDisplay.toFixed(currentSettings.displayUnit === 'mi' ? 2 : 1)}`;
+                cellPace.textContent = formatPace(avgPaceForSegmentDisplayUnit).string;
+            }
+        }
+
+
+        // --- Event Handlers ---
+        function handleRaceLengthChange() {
+            // (Similar to previous version)
+            const selectedValue = el.raceLength.value;
+            if (selectedValue === 'custom') {
+                el.customRaceLength.classList.remove('hidden');
+                let customVal = parseFloat(el.customRaceLength.value) || 0;
+                currentSettings.raceLengthKm = convertUnitToKm(customVal, currentSettings.displayUnit);
+            } else {
+                el.customRaceLength.classList.add('hidden');
+                currentSettings.raceLengthKm = parseFloat(selectedValue);
+            }
+
+            if (currentSettings.targetTimeSec > 0 && currentSettings.targetPaceSecPerKm === 0) updatePaceFromTime();
+            else if (currentSettings.targetPaceSecPerKm > 0) updateTimeFromPace();
+            else updateUIAndOutput();
+        }
+
+        el.customRaceLength.addEventListener('input', () => {
+            if (el.raceLength.value === 'custom') {
+                let val = parseFloat(el.customRaceLength.value) || 0;
+                currentSettings.raceLengthKm = convertUnitToKm(val, currentSettings.displayUnit);
+                if (currentSettings.targetTimeSec > 0 && currentSettings.targetPaceSecPerKm === 0) updatePaceFromTime();
+                else if (currentSettings.targetPaceSecPerKm > 0) updateTimeFromPace();
+                else updateUIAndOutput();
+            }
+        });
+
+        el.distanceUnit.addEventListener('change', (e) => { /* ... (similar, ensure customRaceLength updates its displayed value) ... */
+            const oldUnit = currentSettings.displayUnit;
+            currentSettings.displayUnit = e.target.value;
+            el.paceUnitLabel.textContent = currentSettings.displayUnit;
+
+            if (el.raceLength.value === 'custom' && el.customRaceLength.value) {
+                const lengthInKm = currentSettings.raceLengthKm;
+                el.customRaceLength.value = convertKmToUnit(lengthInKm, currentSettings.displayUnit).toFixed(currentSettings.displayUnit === 'mi' ? 2 : 1);
+            }
+
+            if (currentSettings.targetPaceSecPerKm > 0) {
+                const paceInNewUnit = convertPaceKmToUnit(currentSettings.targetPaceSecPerKm, currentSettings.displayUnit);
+                const { m, s } = formatPace(paceInNewUnit);
+                el.targetPaceM.value = String(m);
+                el.targetPaceS.value = String(s).padStart(2, '0');
+            }
+            updateUIAndOutput();
+        });
+
+        // Time and Pace input listeners
+        [el.targetTimeH, el.targetTimeM, el.targetTimeS].forEach(input => {
+            input.addEventListener('input', (e) => {
+                const unit = e.target.id.slice(-1).toUpperCase(); // H, M, S
+                handleTimePaceInputChange(e.target, unit);
+            });
+        });
+        [el.targetPaceM, el.targetPaceS].forEach(input => {
+            input.addEventListener('input', (e) => {
+                const unit = 'P' + e.target.id.slice(-1).toUpperCase(); // PM, PS
+                handleTimePaceInputChange(e.target, unit);
+            });
+        });
+
+        // Custom +/- button listeners
+        document.querySelectorAll('.input-button').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const targetInputId = e.currentTarget.dataset.input;
+                const step = parseInt(e.currentTarget.dataset.step);
+                const inputElement = document.getElementById(targetInputId);
+                let currentValue = parseInt(inputElement.value) || 0;
+                inputElement.value = currentValue + step;
+                // Trigger the input event manually for wrapping and recalculation
+                inputElement.dispatchEvent(new Event('input', { bubbles: true }));
+            });
+        });
+
+
+        el.splitPercentSlider.addEventListener('input', (e) => {
+            currentSettings.splitPercent = parseFloat(e.target.value);
+            el.splitPercentNumber.value = currentSettings.splitPercent;
+            updateUIAndOutput();
+        });
+        el.splitPercentNumber.addEventListener('input', (e) => {
+            currentSettings.splitPercent = parseFloat(e.target.value) || 0;
+            // Clamp value to slider's min/max
+            currentSettings.splitPercent = Math.max(parseFloat(el.splitPercentSlider.min), Math.min(parseFloat(el.splitPercentSlider.max), currentSettings.splitPercent));
+            el.splitPercentSlider.value = currentSettings.splitPercent;
+            el.splitPercentNumber.value = currentSettings.splitPercent; // Update in case it was clamped
+            updateUIAndOutput();
+        });
+
+        function toggleCurveSpecificInputs() {
+            el.stepsNumber.classList.toggle('hidden', currentSettings.splitCurve !== 'steps');
+            el.powerExponent.classList.toggle('hidden', currentSettings.splitCurve !== 'power');
+        }
+
+        el.splitCurveShape.addEventListener('change', (e) => {
+            currentSettings.splitCurve = e.target.value;
+            toggleCurveSpecificInputs();
+            updateUIAndOutput();
+        });
+        el.stepsNumber.addEventListener('input', () => { currentSettings.stepsNumberVal = parseInt(el.stepsNumber.value) || 2; updateUIAndOutput(); });
+        el.powerExponent.addEventListener('input', () => { currentSettings.powerExponentVal = parseFloat(el.powerExponent.value) || 2.0; updateUIAndOutput(); });
+
+        el.showLinesPlus.addEventListener('input', () => { currentSettings.showLinesPlus = el.showLinesPlus.value.split(',').map(p=>parseFloat(p.trim())).filter(p=>!isNaN(p)&&p>0); updateUIAndOutput(); });
+        el.showLinesMinus.addEventListener('input', () => { currentSettings.showLinesMinus = el.showLinesMinus.value.split(',').map(p=>parseFloat(p.trim())).filter(p=>!isNaN(p)&&p>0); updateUIAndOutput(); });
+        el.raceLength.addEventListener('change', handleRaceLengthChange);
+        el.shareButton.addEventListener('click', () => { /* ... (same as before, uses showNotification) ... */
+             updateURLParameters();
+            if (navigator.clipboard && el.shareableLink.href && el.shareableLink.href !== window.location.href.split('?')[0] + '?') {
+                navigator.clipboard.writeText(el.shareableLink.href).then(() => {
+                    showNotification('Shareable link copied to clipboard!');
+                }).catch(err => {
+                    showNotification('Could not copy link. Please copy manually.', 3000, true);
+                });
+            } else if (el.shareableLink.href && el.shareableLink.href !== window.location.href.split('?')[0] + '?') {
+                showNotification('Link generated. Please copy manually.', 3000, true);
+            } else {
+                 showNotification('No settings to share yet.', 3000, true);
+            }
+        });
+
+        // Collapsible sections
+        [el.controlsHeader, el.paceTableHeader].forEach(header => {
+            header.addEventListener('click', () => {
+                const content = header.nextElementSibling;
+                const chevron = header.querySelector('svg');
+                const isOpen = content.classList.toggle('open');
+                chevron.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(-180deg)';
+                content.style.maxHeight = isOpen ? content.scrollHeight + "px" : "0";
+            });
+        });
+
+        // --- Initialization ---
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeChart();
+            loadFromURLParameters(); // This will also trigger initial calculations and UI updates
+            [el.controlsContent, el.paceTableContent].forEach(content => {
+                const header = content.previousElementSibling;
+                const chevron = header.querySelector('svg');
+                const isOpen = content.classList.contains('open');
+                 // Default pace table to closed
+                if (content.id === 'paceTableContent' && !window.location.search) { // Only default close if no params
+                    content.classList.remove('open');
+                    chevron.style.transform = 'rotate(-180deg)';
+                } else {
+                     chevron.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(-180deg)';
+                }
+                content.style.maxHeight = isOpen ? content.scrollHeight + "px" : "0";
+
+            });
+            // Ensure pace table chevron is correct if it starts closed
+             if (!el.paceTableContent.classList.contains('open')) {
+                el.paceTableChevron.style.transform = 'rotate(-180deg)';
+                el.paceTableContent.style.maxHeight = "0";
+            }
+        });
+    </script>
+</body>
+</html>
